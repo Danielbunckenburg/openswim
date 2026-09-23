@@ -1,21 +1,19 @@
-# Watch design system
+# Wear OS design system
 
-OpenSwim uses one visual language across the local watch flow. The source tokens and reusable Compose elements live in `wear/src/main/java/org/openswim/wear/MainActivity.kt`.
-
-## Visual roles
+The local watch app has two equally prominent modes: Guided Workout and Pool Swim. Home contains only these choices. Setup, session, and summary share type, color, spacing, and controls from `wear/src/main/java/org/openswim/wear/WearDesign.kt`. The session-specific screens are in `SessionScreens.kt`.
 
 | Role | Treatment |
 | --- | --- |
-| Canvas | Near-black `#02080D` |
-| Surface | Deep blue `#0D1B24`, with `#122530` for emphasized cards |
-| Primary action and progress | Restrained cyan `#67DEFA` |
-| Rest and paused state | Warm amber `#FFC878` |
+| Canvas | Near black `#02080D` |
+| Surface | Deep blue `#0D1B24` and `#122530` |
+| Action and active state | Cyan `#67DEFA` |
+| Rest, pause, end prompt | Amber `#FFC878` |
 | Primary text | Cool white `#F5FBFF` |
 | Supporting text | Blue gray `#A7BBC5` |
 | Borders and tracks | `#29414C` |
 
-Large distance or rest time communicates the immediate task. Stroke or drill type follows it, then repetition and next action. Workout progress and elapsed time remain secondary. On 195 dp screens the active header becomes simply “SWIM” so it stays inside the round safe area.
+The guided Current page gives the largest area to distance, then stroke/type, repetition, and the explicit SWIM state. Rest gives the largest area to the countdown and names the next repetition. Pool Swim opens on Metrics with time, manually counted distance, and lengths. Both session types place controls on the next horizontal page; Guided Workout has Current, Metrics, and Controls. Large buttons use cyan only for the immediate primary action. Pause, Lock, Drill/Kick, and End occupy a compact two-row grid so every control is visible on both tested round sizes.
 
-The reusable Compose elements include `ScrollPage`, `FixedPage`, `Eyebrow`, `Heading`, `Status`, `WideButton`, `ActionRow`, `WorkoutCard`, `SectionCard`, `MetricTile`, and `ThinProgress`. Buttons and the rest dial adapt to screen height. Primary actions use cyan fills; rest and paused labels use amber. Page changes crossfade, progress and the rest arc animate, and the manual session state determines which screen appears.
+Reusable elements include `ScrollPage`, `FixedPage`, `Eyebrow`, `Status`, `Heading`, `WideButton`, `FilterChip`, `PoolOption`, `WorkoutCard`, `SectionCard`, `MetricTile`, `RestDial`, and `ThinProgress`. Session pages crossfade when swiped or when their arrow is tapped. Discovery pages scroll vertically. The Current, Rest, Metrics, Controls, Lock, and Pause screens fit without vertical scrolling at 227 dp and 195 dp.
 
-Scrolling is reserved for discovery and detail content. Active, rest, and pause screens keep their action controls in the visible round area without scrolling.
+Metrics are based only on local manual actions. Guided repetition completion counts its planned distance; Pool Swim advances distance only when a length or Drill/Kick distance is entered. There are no sensor-derived values in this milestone.

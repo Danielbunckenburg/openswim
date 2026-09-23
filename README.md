@@ -1,18 +1,19 @@
 # OpenSwim
 
-OpenSwim is a free, open-source swim workout app. Its Wear OS prototype gives clear instructions at a glance in the pool. Visual quality, accessibility, and testing across watch sizes are the current priorities.
+OpenSwim is a free, open-source swim workout app. Its standalone Wear OS app supports local guided workouts and manual pool swims with clear information at a glance. Physical pool testing and accessibility review remain priorities.
 
 [Project website](https://danielbunckenburg.github.io/openswim/) · [Issues](https://github.com/Danielbunckenburg/openswim/issues) · [Roadmap](ROADMAP.md)
 
 ## Available now
 
 - Twelve original offline workouts across Easy, Technique, Aerobic, Endurance, Threshold, and Sprint, with verified distances and repetitions.
-- Wear OS Home, category-filtered library, workout detail, compatible pool selection, ready screen, active instruction, automatic rest countdown, pause/resume, manual repetition progression, and completion summary.
+- Two standalone watch modes: Guided Workout with a 12-plan local library, and Pool Swim with explicit manual length logging.
+- Shared pool setup, ready screen, session metrics, controls, deliberate hold-to-unlock, Drill/Kick distance entry, pause/resume, end confirmation, and completion summary.
 - Local recovery of the current workout and its progress after the app restarts.
 - Framework-independent, serializable Kotlin workout model and tested session state machine.
 - Static project website in `website/`.
 
-Tap **Rep done** after swimming the displayed distance; the app advances to the next repetition and runs any planned rest. The selected pool length shows the planned number of lengths. A pool is selectable only when every step fits a full length. Current plans use meters; a yard pool is not offered. The app does not measure laps or persist a history of completed workouts. It restores the current manual session locally after a restart.
+Guided Workout follows **Library → Detail → Pool size → Ready → Current / Metrics / Controls**. Tap **Rep done** after the displayed distance; the app advances to the next repetition and runs planned rest. Pool Swim follows **Pool size → Ready → Metrics / Controls**. Tap **Log length** for each completed length. Both modes allow manual Drill/Kick entries in pool-length steps. The watch does not measure laps: distance and time shown are based on local manual session state. A pool is selectable for a guided plan only when every step fits a full length. Current plans use meters; a yard pool is not offered. Completed workout history is not persisted, but an in-progress session is restored locally after restart.
 
 The [verified watch screenshots](docs/screenshots/README.md) cover every major screen on a round emulator, with additional captures at a smaller display size.
 
