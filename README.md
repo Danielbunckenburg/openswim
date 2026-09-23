@@ -6,14 +6,15 @@ OpenSwim is a free, open-source swim workout app. Its Wear OS prototype gives cl
 
 ## Available now
 
-- Four local structured workouts with verified totals.
-- Wear OS workout library, detail, pool selection, active instruction, automatic rest countdown, pause/resume, manual repetition progression, and completion summary.
+- Twelve original offline workouts across Easy, Technique, Aerobic, Endurance, Threshold, and Sprint, with verified distances and repetitions.
+- Wear OS Home, category-filtered library, workout detail, compatible pool selection, ready screen, active instruction, automatic rest countdown, pause/resume, manual repetition progression, and completion summary.
+- Local recovery of the current workout and its progress after the app restarts.
 - Framework-independent, serializable Kotlin workout model and tested session state machine.
 - Static project website in `website/`.
 
-This prototype advances when you tap **Next length**. It does not measure a swim or save completed sessions after the app closes. Pool selection is shown for preparation; workouts currently use their authored units and are not converted to a different pool length.
+Tap **Rep done** after swimming the displayed distance; the app advances to the next repetition and runs any planned rest. The selected pool length shows the planned number of lengths. A pool is selectable only when every step fits a full length. Current plans use meters; a yard pool is not offered. The app does not measure laps or persist a history of completed workouts. It restores the current manual session locally after a restart.
 
-The [verified watch screenshots](docs/screenshots/README.md) show the workout list, active workout, rest, pause, and completion screens on a round emulator.
+The [verified watch screenshots](docs/screenshots/README.md) cover every major screen on a round emulator, with additional captures at a smaller display size.
 
 ## Planned
 

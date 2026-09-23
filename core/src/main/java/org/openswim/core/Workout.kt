@@ -58,3 +58,6 @@ fun Workout.instructions(): List<Instruction> = buildList {
         }
     }
 }
+
+fun Workout.supportsPoolLength(length: Int): Boolean =
+    length > 0 && sections.flatMap { it.sets }.all { it.step.distance.amount % length == 0 }

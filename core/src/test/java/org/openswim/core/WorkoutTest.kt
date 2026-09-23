@@ -18,13 +18,18 @@ class WorkoutTest {
     }
 
     @Test fun sampleTotalsAreCorrect() {
-        assertEquals(listOf(1500, 1200, 1000, 2000), SampleWorkouts.all.map { it.totalDistance.amount })
+        assertEquals(listOf(1000, 1000, 1100, 1200, 1500, 1500, 2000, 1900, 1700, 1800, 1000, 1100),
+            SampleWorkouts.all.map { it.totalDistance.amount })
+        assertEquals(setOf("Easy", "Technique", "Aerobic", "Endurance", "Threshold", "Sprint"),
+            SampleWorkouts.all.map { it.type }.toSet())
+        assertTrue(SampleWorkouts.all.all { it.supportsPoolLength(25) })
+        assertFalse(SampleWorkouts.all.first { it.type == "Sprint" }.supportsPoolLength(50))
     }
 
     @Test fun repetitionsAndSerialization() {
         val workout = SampleWorkouts.all.first()
-        assertEquals(200, workout.sections.first().sets[1].totalDistance.amount)
-        assertEquals(16, workout.totalRepetitions)
+        assertEquals(400, workout.sections[1].sets.first().totalDistance.amount)
+        assertEquals(10, workout.totalRepetitions)
         assertEquals(workout, Json.decodeFromString<Workout>(Json.encodeToString(Workout.serializer(), workout)))
     }
 
@@ -65,5 +70,34 @@ class WorkoutTest {
         assertTrue(session.phase is SessionPhase.Rest)
         assertEquals(SessionPhase.Active, session.skipRest().phase)
         assertEquals(SessionPhase.Complete, session.end().phase)
+    }
+
+    @Test fun everyLocalWorkoutCanBeCompletedManually() {
+        SampleWorkouts.all.forEach { workout ->
+            var session = WorkoutSession(workout).start()
+            repeat(workout.totalRepetitions) {
+                session = session.skipRest().advance()
+            }
+            assertEquals(workout.id, SessionPhase.Complete, session.phase)
+            assertEquals(workout.id, workout.totalDistance.amount, session.completedDistance)
+            assertEquals(workout.id, workout.totalRepetitions, session.completedRepetitions)
+            assertEquals(workout.id, workout.sections.sumOf { it.sets.size }, session.completedSets)
+        }
+    }
+
+    @Test fun invalidTransitionsDoNotAdvanceTheWorkout() {
+        val fresh = WorkoutSession(SampleWorkouts.all.first())
+        assertEquals(fresh, fresh.advance())
+        assertEquals(fresh, fresh.end())
+        assertEquals(fresh, fresh.resume())
+        val active = fresh.start()
+        assertEquals(active, active.skipRest())
+        val resting = active.advance().advance()
+        assertTrue(resting.phase is SessionPhase.Rest)
+        assertEquals(resting, resting.advance())
+        val paused = resting.pause()
+        assertEquals(paused, paused.advance())
+        assertEquals(paused, paused.tick())
+        assertEquals(resting, paused.resume())
     }
 }
