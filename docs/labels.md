@@ -1,10 +1,23 @@
-# Suggested GitHub labels
+# Issue labels
 
-- `bug` — reproducible defect
-- `enhancement` — proposed product improvement
-- `wear-os` — watch app
-- `core` — workout model or progression
-- `website` — public site
-- `documentation` — docs and examples
-- `accessibility` — readable and usable swim experience
-- `good first issue` — limited-scope starter task
+Use one type label and relevant area labels. Add `good first issue` only for a bounded task with clear acceptance criteria; use `help wanted` when outside help is welcome.
+
+| Label | Use |
+| --- | --- |
+| `bug` | Reproducible defect |
+| `feature` | Proposed product behavior |
+| `design` | Visual or interaction quality |
+| `wearos` | Watch application |
+| `core` | Workout model or progression |
+| `documentation` | Contributor or product docs |
+| `testing` | Automated or device verification |
+| `accessibility` | Readability and usable controls |
+| `infrastructure` | CI, repository, or tooling |
+| `website` | Public project site |
+| `health-services` | Future Wear OS exercise integration |
+| `android` | Future phone companion |
+| `backend` | Future API and storage |
+| `web` | Future browser application |
+| `apple` | Future Apple platforms |
+| `good first issue` | Small, well-scoped contributor task |
+| `help wanted` | External contributions welcome |

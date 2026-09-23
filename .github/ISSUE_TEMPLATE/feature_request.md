@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Propose an improvement
-labels: enhancement
+labels: feature
 ---
 **Problem to solve**
 
