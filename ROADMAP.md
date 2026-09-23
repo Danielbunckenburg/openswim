@@ -2,13 +2,13 @@
 
 OpenSwim develops one issue at a time. These are directions, not release promises or dates. See GitHub Issues for the current backlog.
 
-## 1. Visual foundation — current priority
+## 1. Standalone watch app — current priority
 
-Make the Wear OS app clear and comfortable to use on a round display. The first visual pass is complete; validation on more watch sizes, accessibility review, and physical pool feedback remain.
+Build a complete, clear local manual swimming experience before starting sensor or cloud features. The app now has 12 curated plans, category navigation, compatible pool selection, manual repetition and rest progression, pause/resume, completion, and local flow recovery. Round emulator checks at 454 × 454 and 390 × 390 pixels are complete. Physical pool usability and accessibility review remain.
 
 ## 2. Workout player
 
-Structured workouts, repetitions, rest, pause/resume, and completion are available in the manual prototype. Refine progression and edge cases before adding automatic tracking.
+The local manual player is available. Keep refining progression, touch targets, and edge cases using watch and pool feedback before adding automatic tracking.
 
 ## 3. Real swim tracking
 
