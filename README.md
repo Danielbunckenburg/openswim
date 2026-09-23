@@ -2,6 +2,8 @@
 
 OpenSwim is a free, open-source swim workout app. Its Wear OS prototype gives clear instructions at a glance in the pool. Visual quality, accessibility, and testing across watch sizes are the current priorities.
 
+[Project website](https://danielbunckenburg.github.io/openswim/) · [Issues](https://github.com/Danielbunckenburg/openswim/issues) · [Roadmap](ROADMAP.md)
+
 ## Available now
 
 - Four local structured workouts with verified totals.
