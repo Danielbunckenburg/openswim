@@ -4,11 +4,11 @@ OpenSwim develops one issue at a time. These are directions, not release promise
 
 ## 1. Standalone watch app — current priority
 
-Build a complete, clear local manual swimming experience before starting sensor or cloud features. The app now has 12 curated plans, category navigation, compatible pool selection, manual repetition and rest progression, pause/resume, completion, and local flow recovery. Round emulator checks at 454 × 454 and 390 × 390 pixels are complete. Physical pool usability and accessibility review remain.
+Build a complete, clear local manual swimming experience before starting sensor or cloud features. The app has two watch modes: Guided Workout with 12 curated plans and Pool Swim with manual length logging. Both use pool selection, a shared session model, horizontal Metrics and Controls pages, deliberate Lock, Drill/Kick entry, pause/resume, end confirmation, summary, and local flow recovery. Round emulator checks at 454 × 454 and 390 × 390 pixels are complete. Physical pool usability and accessibility review remain.
 
 ## 2. Workout player
 
-The local manual player is available. Keep refining progression, touch targets, and edge cases using watch and pool feedback before adding automatic tracking.
+The local manual player is available for guided plans and free pool swims. Keep refining progression, touch targets, and edge cases using watch and pool feedback before adding automatic tracking.
 
 ## 3. Real swim tracking
 
