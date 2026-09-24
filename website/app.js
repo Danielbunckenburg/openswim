@@ -16,7 +16,7 @@
   const state = {
     view: 'overview', user: null, profile: null, workouts: [], plans: [], completed: [], scheduled: [],
     category: 'All', detailId: null, showWorkoutForm: false, showPlanForm: false, showScheduleForm: false,
-    showResultForm: false, loading: true
+    showResultForm: false, loading: true, planDraft: null
   };
   const meta = {
     overview: ['YOUR DASHBOARD', 'Overview', 'Your swimming, all in one place.'],
@@ -29,6 +29,11 @@
   const strokes = ['FREESTYLE', 'BACKSTROKE', 'BREASTSTROKE', 'BUTTERFLY', 'INDIVIDUAL_MEDLEY', 'KICK', 'DRILL', 'CHOICE'];
   const intensities = ['EASY', 'MODERATE', 'STRONG', 'SPRINT'];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const moduleNames = ['Warmup', 'Main set', 'Drills', 'Cool down'];
+  const makeStep = () => ({ repetitions: '4', distance: '50', stroke: 'FREESTYLE', intensity: 'EASY', rest: '20', note: '' });
+  const makeModule = name => ({ name, steps: [makeStep()] });
+  const makeSession = index => ({ title: `Session ${index + 1}`, day: String(index % 7 + 1), minutes: '45', unit: 'METERS', category: 'Easy', modules: moduleNames.map(makeModule) });
+  const makePlanDraft = () => ({ title: '', objective: '', weeks: '4', difficulty: 'Beginner', sessions: [makeSession(0)] });
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
   const pretty = value => String(value ?? '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
@@ -138,9 +143,15 @@
   }
 
   function planForm() {
-    const choices = owned();
-    if (!choices.length) return empty('Create your first workout', 'Plans can use workouts you own. Add a workout from the library first.', '<button class="primary-button" type="button" data-view="workouts" style="margin-top:17px">Go to workouts</button>');
-    return `<form id="plan-form" class="card form-card"><h2>Create a plan</h2><div class="form-grid"><div class="field wide"><label for="plan-title">Plan name</label><input id="plan-title" name="title" maxlength="160" required placeholder="Four weeks of steady swimming"></div><div class="field wide"><label for="plan-objective">Goal</label><input id="plan-objective" name="objective" placeholder="Build endurance"></div><div class="field"><label for="plan-weeks">Duration (weeks)</label><input id="plan-weeks" name="weeks" type="number" min="1" max="52" value="4" required></div><div class="field"><label for="plan-per-week">Swims per week</label><input id="plan-per-week" name="perWeek" type="number" min="1" max="7" value="2" required></div><div class="field"><label for="plan-difficulty">Difficulty</label><select id="plan-difficulty" name="difficulty"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div><div class="field"><label for="plan-workout">First workout</label><select id="plan-workout" name="workoutId">${choices.map(workout => `<option value="${escapeHtml(workout.id)}">${escapeHtml(workout.title)}</option>`).join('')}</select></div><div class="field"><label for="plan-day">Day of week</label><select id="plan-day" name="day">${days.map((day, index) => `<option value="${index + 1}">${day}</option>`).join('')}</select></div></div><div class="form-actions"><button class="primary-button" type="submit">Save plan</button><button class="secondary-button" type="button" data-action="toggle-plan-form">Cancel</button></div><p class="notice-line">The first workout goes in week 1. More editing options will follow.</p></form>`;
+    const draft = state.planDraft ||= makePlanDraft();
+    const select = (items, value) => items.map(item => `<option value="${escapeHtml(item)}" ${item === value ? 'selected' : ''}>${escapeHtml(pretty(item))}</option>`).join('');
+    const sessionHtml = (session, si) => `<section class="plan-session" aria-label="Session ${si + 1}">
+      <div class="builder-head"><div><span class="eyebrow">SESSION ${si + 1}</span><h3>${escapeHtml(session.title || `Session ${si + 1}`)}</h3></div><button type="button" class="text-button danger" data-builder="remove-session" data-session="${si}" ${draft.sessions.length === 1 ? 'disabled' : ''}>Remove session</button></div>
+      <div class="form-grid"><div class="field"><label for="session-title-${si}">Session name</label><input id="session-title-${si}" data-plan-field="title" data-session="${si}" maxlength="160" required value="${escapeHtml(session.title)}"></div><div class="field"><label for="session-day-${si}">Day of week</label><select id="session-day-${si}" data-plan-field="day" data-session="${si}">${days.map((day, index) => `<option value="${index + 1}" ${session.day === String(index + 1) ? 'selected' : ''}>${day}</option>`).join('')}</select></div><div class="field"><label for="session-minutes-${si}">Estimated minutes</label><input id="session-minutes-${si}" data-plan-field="minutes" data-session="${si}" type="number" min="1" max="600" required value="${escapeHtml(session.minutes)}"></div><div class="field"><label for="session-unit-${si}">Distance unit</label><select id="session-unit-${si}" data-plan-field="unit" data-session="${si}"><option value="METERS" ${session.unit === 'METERS' ? 'selected' : ''}>Meters</option><option value="YARDS" ${session.unit === 'YARDS' ? 'selected' : ''}>Yards</option></select></div><div class="field"><label for="session-category-${si}">Category</label><select id="session-category-${si}" data-plan-field="category" data-session="${si}">${select(categories.slice(1), session.category)}</select></div></div>
+      <div class="builder-modules">${session.modules.map((module, mi) => `<section class="builder-module" aria-label="Module ${mi + 1}"><div class="builder-head"><div><span class="module-number">${String(mi + 1).padStart(2, '0')}</span><span class="module-distance">${escapeHtml(distance(module.steps.reduce((sum, step) => sum + Number(step.repetitions || 0) * Number(step.distance || 0), 0), session.unit))}</span></div><div class="builder-controls"><button type="button" class="text-button" data-builder="move-module-up" data-session="${si}" data-module="${mi}" ${mi === 0 ? 'disabled' : ''} aria-label="Move module up">↑</button><button type="button" class="text-button" data-builder="move-module-down" data-session="${si}" data-module="${mi}" ${mi === session.modules.length - 1 ? 'disabled' : ''} aria-label="Move module down">↓</button><button type="button" class="text-button danger" data-builder="remove-module" data-session="${si}" data-module="${mi}" ${session.modules.length === 1 ? 'disabled' : ''}>Remove</button></div></div><div class="field"><label for="module-name-${si}-${mi}">Module name</label><input id="module-name-${si}-${mi}" data-plan-field="name" data-session="${si}" data-module="${mi}" maxlength="80" required value="${escapeHtml(module.name)}" placeholder="Warmup, main set, drills…"></div>
+        <div class="builder-steps">${module.steps.map((step, ti) => `<div class="builder-step"><div class="step-top"><strong>Set ${ti + 1}</strong><button type="button" class="text-button danger" data-builder="remove-step" data-session="${si}" data-module="${mi}" data-step="${ti}" ${module.steps.length === 1 ? 'disabled' : ''}>Remove</button></div><div class="step-fields"><div class="field"><label for="step-reps-${si}-${mi}-${ti}">Reps</label><input id="step-reps-${si}-${mi}-${ti}" data-plan-field="repetitions" data-session="${si}" data-module="${mi}" data-step="${ti}" type="number" min="1" max="100" required value="${escapeHtml(step.repetitions)}"></div><div class="field"><label for="step-distance-${si}-${mi}-${ti}">Distance each</label><input id="step-distance-${si}-${mi}-${ti}" data-plan-field="distance" data-session="${si}" data-module="${mi}" data-step="${ti}" type="number" min="1" max="10000" required value="${escapeHtml(step.distance)}"></div><div class="field"><label for="step-stroke-${si}-${mi}-${ti}">Stroke</label><select id="step-stroke-${si}-${mi}-${ti}" data-plan-field="stroke" data-session="${si}" data-module="${mi}" data-step="${ti}">${select(strokes, step.stroke)}</select></div><div class="field"><label for="step-intensity-${si}-${mi}-${ti}">Effort</label><select id="step-intensity-${si}-${mi}-${ti}" data-plan-field="intensity" data-session="${si}" data-module="${mi}" data-step="${ti}">${select(intensities, step.intensity)}</select></div><div class="field"><label for="step-rest-${si}-${mi}-${ti}">Rest (sec)</label><input id="step-rest-${si}-${mi}-${ti}" data-plan-field="rest" data-session="${si}" data-module="${mi}" data-step="${ti}" type="number" min="0" max="1800" required value="${escapeHtml(step.rest)}"></div><div class="field step-note"><label for="step-note-${si}-${mi}-${ti}">Note (optional)</label><input id="step-note-${si}-${mi}-${ti}" data-plan-field="note" data-session="${si}" data-module="${mi}" data-step="${ti}" maxlength="500" value="${escapeHtml(step.note)}" placeholder="e.g. focus on long strokes"></div></div></div>`).join('')}</div><button type="button" class="secondary-button compact" data-builder="add-step" data-session="${si}" data-module="${mi}">+ Add set</button></section>`).join('')}</div>
+      <div class="builder-add"><span>Add module:</span>${moduleNames.map(name => `<button type="button" class="secondary-button compact" data-builder="add-module" data-session="${si}" data-name="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}<button type="button" class="secondary-button compact" data-builder="add-module" data-session="${si}" data-name="Custom">+ Custom</button></div></section>`;
+    return `<form id="plan-form" class="card form-card"><div class="builder-intro"><div><span class="eyebrow">YOUR TRAINING</span><h2>Create a plan</h2><p>Build each swim from modules and sets. Sessions repeat every week of your plan.</p></div><span class="badge">${draft.sessions.length} swim${draft.sessions.length === 1 ? '' : 's'} / week</span></div><div class="form-grid"><div class="field wide"><label for="plan-title">Plan name</label><input id="plan-title" data-plan-field="title" maxlength="160" required value="${escapeHtml(draft.title)}" placeholder="Four weeks of steady swimming"></div><div class="field wide"><label for="plan-objective">Goal</label><input id="plan-objective" data-plan-field="objective" maxlength="500" value="${escapeHtml(draft.objective)}" placeholder="Build endurance"></div><div class="field"><label for="plan-weeks">Duration (weeks)</label><input id="plan-weeks" data-plan-field="weeks" type="number" min="1" max="52" required value="${escapeHtml(draft.weeks)}"></div><div class="field"><label for="plan-difficulty">Difficulty</label><select id="plan-difficulty" data-plan-field="difficulty">${select(['Beginner', 'Intermediate', 'Advanced'], draft.difficulty)}</select></div></div><div class="builder-section-head"><h3>Weekly sessions</h3><p>Add a session for each swim day, then arrange its modules in order.</p></div>${draft.sessions.map(sessionHtml).join('')}<button type="button" class="secondary-button" data-builder="add-session" ${draft.sessions.length >= 7 ? 'disabled' : ''}>+ Add another session</button><div class="form-actions"><button class="primary-button" type="submit">Save plan</button><button class="secondary-button" type="button" data-action="toggle-plan-form">Cancel</button></div></form>`;
   }
   function scheduleForm() {
     if (!state.workouts.length) return empty('No workouts to schedule', 'Create a workout first.');
@@ -148,7 +159,12 @@
   }
   function plansView() {
     if (!state.user) return empty('Your plans are private', 'Sign in to view or create a training plan.', '<button class="primary-button" type="button" data-view="account" style="margin-top:17px">Sign in</button>');
-    return `<div class="toolbar"><div class="muted">Build your own rhythm in the water.</div><div><button class="secondary-button" type="button" data-action="toggle-schedule-form">+ Schedule swim</button> <button class="primary-button" type="button" data-action="toggle-plan-form">+ Create plan</button></div></div>${state.showPlanForm ? planForm() : ''}${state.showScheduleForm ? scheduleForm() : ''}${sectionHead('Training plans', `${state.plans.length} ${state.plans.length === 1 ? 'plan' : 'plans'}`)}${state.plans.length ? `<div class="stack">${state.plans.map(plan => `<article class="card"><span class="badge private">${Number(plan.duration_weeks)} weeks</span><h2 style="margin-top:12px">${escapeHtml(plan.title)}</h2><p>${escapeHtml(plan.objective || 'Your training plan')} · ${Number(plan.workouts_per_week)} swims per week · ${escapeHtml(plan.difficulty || 'Flexible')}</p><div class="section-block"><h3>Plan workouts</h3>${[...(plan.training_plan_workouts || [])].sort((a, b) => a.week_number - b.week_number || a.day_number - b.day_number).map(item => `<div class="step-row"><span>${escapeHtml(days[item.day_number - 1] || 'Day')} · ${escapeHtml(workoutName(item.workout_id))}</span><small>Week ${Number(item.week_number)}</small></div>`).join('') || '<p class="muted">No workouts added yet.</p>'}</div></article>`).join('')}</div>` : empty('No plans yet', 'Create a plan using one of your own workouts.')}${sectionHead('Schedule', 'Upcoming swims')}${state.scheduled.length ? `<div class="stack">${state.scheduled.map(item => `<div class="list-card"><span><h3>${escapeHtml(workoutName(item.workout_id))}</h3><p>${escapeHtml(dateText(item.scheduled_date))}</p></span><span class="badge ${item.status === 'SCHEDULED' ? '' : 'private'}">${escapeHtml(pretty(item.status))}</span></div>`).join('')}</div>` : empty('Nothing scheduled', 'Choose a workout and set a date to see it here.')}`;
+    const planCard = plan => {
+      const entries = [...(plan.training_plan_workouts || [])].sort((a, b) => a.week_number - b.week_number || a.day_number - b.day_number || a.position - b.position);
+      const week = entries.filter(item => item.week_number === 1);
+      return `<article class="card"><span class="badge private">${Number(plan.duration_weeks)} weeks</span><h2 style="margin-top:12px">${escapeHtml(plan.title)}</h2><p>${escapeHtml(plan.objective || 'Your training plan')} · ${Number(plan.workouts_per_week)} swims per week · ${escapeHtml(plan.difficulty || 'Flexible')}</p><div class="section-block"><h3>Week 1 sessions</h3>${week.map(item => { const workout = state.workouts.find(row => row.id === item.workout_id); return `<button type="button" class="plan-session-link" data-action="plan-workout-detail" data-id="${escapeHtml(item.workout_id)}"><span><strong>${escapeHtml(days[item.day_number - 1] || 'Day')} · ${escapeHtml(workoutName(item.workout_id))}</strong><small>${workout ? escapeHtml(sortedSections(workout).map(section => section.name).join(' · ')) : 'View session modules'}</small></span><span aria-hidden="true">→</span></button>`; }).join('') || '<p class="muted">No workouts added yet.</p>'}<p class="notice-line">${entries.length === week.length * Number(plan.duration_weeks) ? `These sessions repeat for ${Number(plan.duration_weeks)} weeks.` : `${entries.length} session placements across the plan.`} Open a session to see every module and set.</p></div></article>`;
+    };
+    return `<div class="toolbar"><div class="muted">Build your own rhythm in the water.</div><div><button class="secondary-button" type="button" data-action="toggle-schedule-form">+ Schedule swim</button> <button class="primary-button" type="button" data-action="toggle-plan-form">+ Create plan</button></div></div>${state.showPlanForm ? planForm() : ''}${state.showScheduleForm ? scheduleForm() : ''}${sectionHead('Training plans', `${state.plans.length} ${state.plans.length === 1 ? 'plan' : 'plans'}`)}${state.plans.length ? `<div class="stack">${state.plans.map(planCard).join('')}</div>` : empty('No plans yet', 'Build a plan with weekly sessions, modules and sets.')}${sectionHead('Schedule', 'Upcoming swims')}${state.scheduled.length ? `<div class="stack">${state.scheduled.map(item => `<div class="list-card"><span><h3>${escapeHtml(workoutName(item.workout_id))}</h3><p>${escapeHtml(dateText(item.scheduled_date))}</p></span><span class="badge ${item.status === 'SCHEDULED' ? '' : 'private'}">${escapeHtml(pretty(item.status))}</span></div>`).join('')}</div>` : empty('Nothing scheduled', 'Choose a workout and set a date to see it here.')}`;
   }
 
   function activityRow(swim) {
@@ -185,16 +201,52 @@
     await loadData();
     notify('Workout saved. It is available in the web and Android apps.');
   }
-  async function savePlan(form) {
-    const values = Object.fromEntries(new FormData(form));
-    const weeks = Number(values.weeks), perWeek = Number(values.perWeek), day = Number(values.day);
-    if (!values.title.trim() || !owned().some(workout => workout.id === values.workoutId) || !Number.isInteger(weeks) || weeks < 1 || !Number.isInteger(perWeek) || perWeek < 1 || !Number.isInteger(day) || day < 1 || day > 7) throw new Error('Please enter a valid plan.');
-    const plan = requireData(await client.from('training_plans').insert({ title: values.title.trim(), objective: values.objective.trim() || null, duration_weeks: weeks, workouts_per_week: perWeek, difficulty: values.difficulty }).select('id').single());
-    try { requireData(await client.from('training_plan_workouts').insert({ plan_id: plan.id, workout_id: values.workoutId, week_number: 1, day_number: day, position: 0 })); }
-    catch (error) { await client.from('training_plans').delete().eq('id', plan.id); throw error; }
+  function validatePlan(draft) {
+    const weeks = Number(draft.weeks);
+    if (!draft.title.trim() || draft.title.trim().length > 160 || !Number.isInteger(weeks) || weeks < 1 || weeks > 52 || !['Beginner', 'Intermediate', 'Advanced'].includes(draft.difficulty)) throw new Error('Enter a plan name, duration from 1 to 52 weeks, and difficulty.');
+    if (draft.sessions.length < 1 || draft.sessions.length > 7) throw new Error('Add between 1 and 7 weekly sessions.');
+    for (const session of draft.sessions) {
+      const minutes = Number(session.minutes);
+      if (!session.title.trim() || session.title.trim().length > 160 || !Number.isInteger(Number(session.day)) || Number(session.day) < 1 || Number(session.day) > 7 || !Number.isInteger(minutes) || minutes < 1 || minutes > 600 || !categories.slice(1).includes(session.category) || !['METERS', 'YARDS'].includes(session.unit)) throw new Error('Check each session name, day, duration, category and distance unit.');
+      if (!session.modules.length) throw new Error(`Add a module to ${session.title}.`);
+      for (const module of session.modules) {
+        if (!module.name.trim() || module.name.trim().length > 80 || !module.steps.length) throw new Error(`Check modules and sets in ${session.title}.`);
+        for (const step of module.steps) {
+          const reps = Number(step.repetitions), amount = Number(step.distance), rest = Number(step.rest);
+          if (!Number.isInteger(reps) || reps < 1 || reps > 100 || !Number.isInteger(amount) || amount < 1 || amount > 10000 || !Number.isInteger(rest) || rest < 0 || rest > 1800 || !strokes.includes(step.stroke) || !intensities.includes(step.intensity) || step.note.length > 500) throw new Error(`Check repetitions, distance, stroke, effort and rest in ${session.title}.`);
+        }
+      }
+    }
+    return weeks;
+  }
+  async function savePlan() {
+    const draft = structuredClone(state.planDraft);
+    const weeks = validatePlan(draft);
+    const createdWorkoutIds = [];
+    let planId = null;
+    try {
+      for (const session of draft.sessions) {
+        const workout = requireData(await client.from('workouts').insert({ title: session.title.trim(), description: `From plan: ${draft.title.trim()}`, category: session.category, estimated_minutes: Number(session.minutes), distance_unit: session.unit, visibility: 'PRIVATE' }).select('id').single());
+        createdWorkoutIds.push(workout.id);
+        for (const [position, module] of session.modules.entries()) {
+          const section = requireData(await client.from('workout_sections').insert({ workout_id: workout.id, position, name: module.name.trim() }).select('id').single());
+          requireData(await client.from('workout_steps').insert(module.steps.map((step, index) => ({ section_id: section.id, position: index, repetitions: Number(step.repetitions), distance_amount: Number(step.distance), stroke: step.stroke, intensity: step.intensity, rest_after_seconds: Number(step.rest), note: step.note.trim() || null }))));
+        }
+      }
+      const plan = requireData(await client.from('training_plans').insert({ title: draft.title.trim(), objective: draft.objective.trim() || null, duration_weeks: weeks, workouts_per_week: draft.sessions.length, difficulty: draft.difficulty }).select('id').single());
+      planId = plan.id;
+      const links = [];
+      for (let week = 1; week <= weeks; week++) draft.sessions.forEach((session, index) => links.push({ plan_id: planId, workout_id: createdWorkoutIds[index], week_number: week, day_number: Number(session.day), position: index }));
+      requireData(await client.from('training_plan_workouts').insert(links));
+    } catch (error) {
+      if (planId) await client.from('training_plans').delete().eq('id', planId);
+      for (const id of createdWorkoutIds) await client.from('workouts').delete().eq('id', id);
+      throw error;
+    }
     state.showPlanForm = false;
+    state.planDraft = null;
     await loadData();
-    notify('Plan saved to your account.');
+    notify('Plan saved with all weekly sessions, modules and sets. It is available on Android too.');
   }
   async function saveSchedule(form) {
     const values = Object.fromEntries(new FormData(form));
@@ -216,7 +268,33 @@
     notify('Swim saved. It will appear in the Android app for this account.');
   }
 
+  function updatePlanField(input) {
+    if (!state.planDraft || !input.closest('#plan-form')) return;
+    const { planField, session, module, step } = input.dataset;
+    if (!planField) return;
+    const target = session === undefined ? state.planDraft : step !== undefined ? state.planDraft.sessions[Number(session)]?.modules[Number(module)]?.steps[Number(step)] : module !== undefined ? state.planDraft.sessions[Number(session)]?.modules[Number(module)] : state.planDraft.sessions[Number(session)];
+    if (target) target[planField] = input.value;
+  }
+  document.addEventListener('input', event => updatePlanField(event.target));
+  document.addEventListener('change', event => updatePlanField(event.target));
   document.addEventListener('click', async event => {
+    const builder = event.target.closest('[data-builder]');
+    if (builder && state.planDraft) {
+      const { builder: action, session: sessionIndex, module: moduleIndex, step: stepIndex } = builder.dataset;
+      const sessions = state.planDraft.sessions;
+      const si = Number(sessionIndex), mi = Number(moduleIndex), ti = Number(stepIndex);
+      const session = sessions[si], modules = session?.modules, steps = modules?.[mi]?.steps;
+      if (action === 'add-session' && sessions.length < 7) sessions.push(makeSession(sessions.length));
+      else if (action === 'remove-session' && sessions.length > 1) sessions.splice(si, 1);
+      else if (action === 'add-module' && modules && modules.length < 20) modules.push(makeModule(builder.dataset.name));
+      else if (action === 'remove-module' && modules?.length > 1) modules.splice(mi, 1);
+      else if (action === 'move-module-up' && mi > 0) [modules[mi - 1], modules[mi]] = [modules[mi], modules[mi - 1]];
+      else if (action === 'move-module-down' && mi < modules.length - 1) [modules[mi + 1], modules[mi]] = [modules[mi], modules[mi + 1]];
+      else if (action === 'add-step' && steps && steps.length < 30) steps.push(makeStep());
+      else if (action === 'remove-step' && steps?.length > 1) steps.splice(ti, 1);
+      render();
+      return;
+    }
     const nav = event.target.closest('[data-view]');
     if (nav) { setView(nav.dataset.view); return; }
     const category = event.target.closest('[data-category]');
@@ -225,8 +303,9 @@
     if (!button) return;
     const action = button.dataset.action;
     if (action === 'workout-detail') { state.detailId = button.dataset.id; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else if (action === 'plan-workout-detail') { setView('workouts'); state.detailId = button.dataset.id; render(); }
     else if (action === 'close-detail') { state.detailId = null; render(); }
-    else if (action.startsWith('toggle-')) { const property = { 'toggle-workout-form': 'showWorkoutForm', 'toggle-plan-form': 'showPlanForm', 'toggle-schedule-form': 'showScheduleForm', 'toggle-result-form': 'showResultForm' }[action]; if (property) { state[property] = !state[property]; render(); } }
+    else if (action.startsWith('toggle-')) { const property = { 'toggle-workout-form': 'showWorkoutForm', 'toggle-plan-form': 'showPlanForm', 'toggle-schedule-form': 'showScheduleForm', 'toggle-result-form': 'showResultForm' }[action]; if (property) { state[property] = !state[property]; if (property === 'showPlanForm') state.planDraft = state[property] ? makePlanDraft() : null; render(); } }
     else if (action === 'sign-out') { button.disabled = true; const { error } = await client.auth.signOut(); if (error) { button.disabled = false; notify(error.message, true); } else notify('Signed out.'); }
   });
   document.addEventListener('submit', async event => {
