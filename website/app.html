@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#061920">
+  <meta name="description" content="Plan swims and review training with your OpenSwim account.">
+  <title>OpenSwim · My swimming</title>
+  <link rel="stylesheet" href="app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" integrity="sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz" crossorigin="anonymous"></script>
+  <script defer src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="index.html" aria-label="OpenSwim home"><span class="brand-symbol" aria-hidden="true">≈</span><span>OpenSwim</span></a>
+      <div class="sidebar-label">YOUR SPACE</div>
+      <nav class="nav-list" aria-label="App sections">
+        <button type="button" class="nav-item is-active" data-view="overview"><span aria-hidden="true">◫</span> Overview</button>
+        <button type="button" class="nav-item" data-view="workouts"><span aria-hidden="true">≋</span> Workouts</button>
+        <button type="button" class="nav-item" data-view="plans"><span aria-hidden="true">▦</span> Plans</button>
+        <button type="button" class="nav-item" data-view="progress"><span aria-hidden="true">↗</span> Progress</button>
+        <button type="button" class="nav-item" data-view="account"><span aria-hidden="true">◎</span> Account</button>
+      </nav>
+      <div class="sidebar-bottom"><span class="status-dot" aria-hidden="true"></span><span>Connected to OpenSwim Cloud</span></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="app-header">
+        <div class="mobile-brand"><a href="index.html"><span class="brand-symbol" aria-hidden="true">≈</span> OpenSwim</a></div>
+        <span class="header-kicker">TRAIN WITH CLARITY</span>
+        <div class="header-actions"><span id="account-label" class="account-label">Guest</span><button type="button" id="header-account" class="account-pill">Sign in</button></div>
+      </header>
+
+      <main id="main-content" class="main-content" tabindex="-1">
+        <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+        <div class="page-heading"><div><span id="page-eyebrow" class="eyebrow">YOUR DASHBOARD</span><h1 id="page-title">Overview</h1><p id="page-subtitle">Your swimming, all in one place.</p></div><button type="button" id="refresh-button" class="refresh-button" title="Refresh cloud data" aria-label="Refresh cloud data">↻ <span>Refresh</span></button></div>
+        <div id="view-content" aria-live="polite"><div class="loading-card">Connecting to OpenSwim Cloud…</div></div>
+      </main>
+    </div>
+  </div>
+  <nav class="mobile-nav" aria-label="App sections">
+    <button type="button" class="is-active" data-view="overview"><span aria-hidden="true">◫</span>Home</button>
+    <button type="button" data-view="workouts"><span aria-hidden="true">≋</span>Workouts</button>
+    <button type="button" data-view="plans"><span aria-hidden="true">▦</span>Plans</button>
+    <button type="button" data-view="progress"><span aria-hidden="true">↗</span>Progress</button>
+    <button type="button" data-view="account"><span aria-hidden="true">◎</span>Account</button>
+  </nav>
+</body>
+</html>
