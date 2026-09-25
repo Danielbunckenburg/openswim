@@ -43,6 +43,12 @@ internal class CloudRepository(context: Context) : CompanionRepository {
         private set
     var email by mutableStateOf<String?>(null)
         private set
+    var displayName by mutableStateOf<String?>(null)
+        private set
+    var lastSyncAt by mutableStateOf<java.time.Instant?>(null)
+        private set
+    var workoutDescriptions by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
     var ready by mutableStateOf(false)
         private set
     override var workouts by mutableStateOf<List<Workout>>(emptyList())
@@ -101,7 +107,7 @@ internal class CloudRepository(context: Context) : CompanionRepository {
     fun signOut() = runTask {
         try { request("/auth/v1/logout", "POST") } catch (_: Exception) { /* local sign out must still work */ }
         clearSession()
-        main.post { workouts = emptyList(); plans = emptyList(); scheduled = emptyList(); completed = emptyList() }
+        main.post { workouts = emptyList(); plans = emptyList(); scheduled = emptyList(); completed = emptyList(); displayName = null }
         loadData()
     }
 
@@ -139,7 +145,7 @@ internal class CloudRepository(context: Context) : CompanionRepository {
 
     private fun loadData() {
         val token = session?.optString("access_token")
-        val workoutRows = getRows("workouts?select=id,title,category,estimated_minutes,distance_unit,workout_sections(name,position,workout_steps(position,repetitions,distance_amount,stroke,intensity,equipment,rest_after_seconds,target_pace_seconds_per_100,target_interval_seconds,note))&order=created_at.desc", token)
+        val workoutRows = getRows("workouts?select=id,title,description,category,estimated_minutes,distance_unit,workout_sections(name,position,workout_steps(position,repetitions,distance_amount,stroke,intensity,equipment,rest_after_seconds,target_pace_seconds_per_100,target_interval_seconds,note))&order=created_at.desc", token)
         val loadedWorkouts = workoutRows.objects().mapNotNull { row ->
             val sections = row.optJSONArray("workout_sections")?.objects().orEmpty().sortedBy { it.optInt("position") }.mapNotNull { section ->
                 val sets = section.optJSONArray("workout_steps")?.objects().orEmpty().sortedBy { it.optInt("position") }.map { step ->
@@ -159,7 +165,9 @@ internal class CloudRepository(context: Context) : CompanionRepository {
         var loadedPlans = emptyList<TrainingPlan>()
         var loadedScheduled = emptyList<ScheduledSwim>()
         var loadedCompleted = emptyList<CompletedWorkout>()
+        var loadedDisplayName: String? = null
         if (token != null) {
+            loadedDisplayName = getRows("profiles?select=display_name&limit=1", token).objects().firstOrNull()?.stringOrNull("display_name")
             val planRows = getRows("training_plans?select=id,title,objective,duration_weeks,workouts_per_week,difficulty,training_plan_workouts(id,workout_id,week_number,day_number,position)&order=created_at.desc", token)
             loadedPlans = planRows.objects().map { p ->
                 val schedule = p.optJSONArray("training_plan_workouts")?.objects().orEmpty().sortedWith(compareBy({ it.getInt("week_number") }, { it.getInt("day_number") }, { it.getInt("position") })).map { item ->
@@ -174,7 +182,25 @@ internal class CloudRepository(context: Context) : CompanionRepository {
                 CompletedWorkout(row.getString("id"), row.stringOrNull("workout_id").orEmpty(), LocalDate.parse(row.getString("started_at").take(10)).toString(), Distance(row.getInt("distance_amount"), DistanceUnit.valueOf(row.getString("distance_unit"))), (row.getInt("duration_seconds") + 59) / 60)
             }
         }
-        main.post { workouts = loadedWorkouts; plans = loadedPlans; scheduled = loadedScheduled; completed = loadedCompleted }
+        val descriptions = workoutRows.objects().mapNotNull { row -> row.stringOrNull("description")?.let { row.getString("id") to it } }.toMap()
+        main.post { workouts = loadedWorkouts; plans = loadedPlans; scheduled = loadedScheduled; completed = loadedCompleted; displayName = loadedDisplayName; workoutDescriptions = descriptions; lastSyncAt = java.time.Instant.now() }
+    }
+
+    fun saveSwim(workoutId: String?, distanceMeters: Int, durationSeconds: Int, poolLength: Int, startedAt: java.time.Instant) = runTask {
+        val userId = session?.optJSONObject("user")?.optString("id").orEmpty()
+        if (userId.isBlank()) error("Sign in to save your swim")
+        val body = JSONObject()
+            .put("user_id", userId)
+            .put("workout_id", workoutId ?: JSONObject.NULL)
+            .put("started_at", startedAt.toString())
+            .put("completed_at", java.time.Instant.now().toString())
+            .put("distance_amount", distanceMeters)
+            .put("distance_unit", "METERS")
+            .put("duration_seconds", durationSeconds)
+            .put("pool_length", poolLength)
+        request("/rest/v1/completed_workouts", "POST", body)
+        loadData()
+        main.post { notice = "Swim saved to your account." }
     }
 
     private fun getRows(path: String, token: String?): JSONArray = request("/rest/v1/$path", jwt = token) as JSONArray
