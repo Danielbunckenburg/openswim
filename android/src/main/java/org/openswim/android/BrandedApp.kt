@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,6 +33,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -68,11 +71,13 @@ private sealed interface SwimPage {
     data object Help : SwimPage
     data object About : SwimPage
     data object Notifications : SwimPage
+    data object Auth : SwimPage
 }
 
 @Composable
 internal fun OpenSwimBrandedApp() {
     var showLanding by rememberSaveable { mutableStateOf(true) }
+    var authFromLanding by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(SwimTab.HOME) }
     var page by remember { mutableStateOf<SwimPage?>(null) }
     var previous by remember { mutableStateOf<SwimPage?>(null) }
@@ -97,7 +102,8 @@ internal fun OpenSwimBrandedApp() {
     if (showLanding) {
         HomeLanding(
             onStartSwim = { showLanding = false; open(SwimPage.Swim()) },
-            onGuidedWorkout = { select(SwimTab.WORKOUTS) }
+            onGuidedWorkout = { select(SwimTab.WORKOUTS) },
+            onAccount = { authFromLanding = true; showLanding = false; page = SwimPage.Auth }
         )
         return
     }
@@ -134,6 +140,7 @@ internal fun OpenSwimBrandedApp() {
                 SwimPage.Notifications -> SimplePage("Notifications", ::back) {
                     BrandCard { BrandText("No new notifications", 18, true); BrandText("Your upcoming swims are listed in Plans.", 14, color = Muted) }
                 }
+                SwimPage.Auth -> AuthScreen(onBack = { page = null; if (authFromLanding) showLanding = true }, onSuccess = { select(SwimTab.HOME) })
                 null -> when (tab) {
                     SwimTab.HOME -> Dashboard(
                         onWorkout = { open(SwimPage.WorkoutDetail(it)) },
@@ -141,7 +148,8 @@ internal fun OpenSwimBrandedApp() {
                         onPlans = { select(SwimTab.PLANS) },
                         onSwim = { open(SwimPage.Swim()) },
                         onSync = { open(SwimPage.Sync) },
-                        onNotifications = { open(SwimPage.Notifications) }
+                        onNotifications = { open(SwimPage.Notifications) },
+                        onAccount = { authFromLanding = false; open(SwimPage.Auth) }
                     )
                     SwimTab.WORKOUTS -> WorkoutLibrary(onBack = { select(SwimTab.HOME) }) { open(SwimPage.WorkoutDetail(it)) }
                     SwimTab.PROGRESS -> ProgressView { open(SwimPage.Result(it)) }
@@ -156,7 +164,7 @@ internal fun OpenSwimBrandedApp() {
                 }
             }
         }
-        if (!immersive && page !is SwimPage.WorkoutDetail && page !is SwimPage.PlanDetail && page !is SwimPage.Result) BottomNavigation(tab, ::select)
+        if (!immersive && page !is SwimPage.Auth && page !is SwimPage.WorkoutDetail && page !is SwimPage.PlanDetail && page !is SwimPage.Result) BottomNavigation(tab, ::select)
     }
 }
 
@@ -269,10 +277,17 @@ internal fun OpenSwimBrandedApp() {
     }
 }
 
-@Composable private fun Dashboard(onWorkout: (String) -> Unit, onWorkouts: () -> Unit, onPlans: () -> Unit, onSwim: () -> Unit, onSync: () -> Unit, onNotifications: () -> Unit) {
+@Composable private fun Dashboard(onWorkout: (String) -> Unit, onWorkouts: () -> Unit, onPlans: () -> Unit, onSwim: () -> Unit, onSync: () -> Unit, onNotifications: () -> Unit, onAccount: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         WaterHeader("OpenSwim", action = "bell", onAction = onNotifications, height = 122)
         Column(Modifier.padding(horizontal = 17.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            if (repository.email == null) {
+                BrandCard(onClick = onAccount) {
+                    BrandText("Sign in to sync your training", 19, true)
+                    BrandText("Create an account or sign in to see your private workouts and plans.  ›", 14, color = Muted)
+                }
+            }
+            CloudConnectionStatus()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 BrandText("Today", 24, true, modifier = Modifier.weight(1f))
                 BrandText("See all  →", 14, color = Aqua, modifier = Modifier.clickable(onClick = onWorkouts))
@@ -288,7 +303,7 @@ internal fun OpenSwimBrandedApp() {
                     }
                     BrandText("›", 32, color = Aqua)
                 }
-            } else BrandCard { BrandText("No workouts yet", 18, true); BrandText("Published workouts will appear here after sync.", 14, color = Muted) }
+            } else BrandCard { BrandText("No workouts visible", 18, true); BrandText(if (repository.email == null) "Sign in to see your private workouts. There are no public workouts yet." else "Your workouts will appear here after they are created and synced.", 14, color = Muted) }
             BrandText("Quick Actions", 23, true)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 QuickAction("▣", "Guided Workout", Modifier.weight(1f), onWorkouts)
@@ -695,6 +710,7 @@ private fun paceLabel(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 6
             if (repository.email == null) {
                 BrandCard { BrandText("Welcome to OpenSwim", 22, true); BrandText("Sign in to sync plans and completed swims.", 14, color = Muted) }
                 BrandedAuth()
+                CloudConnectionStatus()
             } else {
                 BrandCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
@@ -708,6 +724,7 @@ private fun paceLabel(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 6
                     }
                 }
             }
+            if (repository.email != null) {
             BrandCard { BrandText("OpenSwim Premium", 19, true); BrandText("Premium features are not available yet.", 14, color = Muted) }
             BrandText("Connected Devices", 22, true)
             BrandCard(onClick = onSync) {
@@ -731,6 +748,7 @@ private fun paceLabel(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 6
             if (repository.email != null) BrandCard(onClick = { repository.signOut() }) { BrandText("Log Out", 17, true, Aqua) }
             repository.notice?.let { BrandCard { BrandText(it, 14, color = Green) } }
             repository.error?.let { ErrorNotice(it) }
+            }
             Spacer(Modifier.height(18.dp))
         }
     }
@@ -744,26 +762,92 @@ private fun paceLabel(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 6
 }
 
 @Composable private fun BrandedAuth() {
+    var mode by rememberSaveable { mutableStateOf("Sign in") }
     var address by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmation by rememberSaveable { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
     BrandCard {
-        BrandText("Email", 13, color = Muted)
-        AuthField(address) { address = it }
-        BrandText("Password", 13, color = Muted)
-        Box(Modifier.fillMaxWidth()) {
-            if (password.isEmpty()) BrandText("Enter password", 15, color = Muted)
-            BasicTextField(password, { password = it }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), textStyle = androidx.compose.ui.text.TextStyle(color = White, fontSize = 16.sp), modifier = Modifier.fillMaxWidth())
+        PillRow(listOf("Sign in", "Create account"), mode) { mode = it; localError = null }
+        Spacer(Modifier.height(7.dp))
+        OutlinedTextField(
+            value = address,
+            onValueChange = { address = it; localError = null },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            colors = authFieldColors()
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; localError = null },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            colors = authFieldColors()
+        )
+        if (mode == "Create account") {
+            OutlinedTextField(
+                value = confirmation,
+                onValueChange = { confirmation = it; localError = null },
+                label = { Text("Confirm password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                colors = authFieldColors()
+            )
+            BrandText("We will email you a confirmation link before you can sign in.", 13, color = Muted)
         }
-        Spacer(Modifier.height(5.dp))
-        BrandButton("Sign In", onClick = { repository.signIn(address, password) })
-        BrandText("Create account", 15, color = Aqua, modifier = Modifier.fillMaxWidth().clickable { repository.signUp(address, password) }.padding(8.dp), align = TextAlign.Center)
+        localError?.let { BrandText(it, 14, color = Color(0xFFFFA8A8)) }
+        repository.error?.let { failure ->
+            BrandText(
+                if (failure.contains("Email address not authorized", ignoreCase = true))
+                    "Confirmation email is not available for this address yet. The project owner needs to configure email delivery."
+                else failure,
+                14, color = Color(0xFFFFA8A8)
+            )
+        }
+        repository.notice?.let { BrandText(it, 14, color = Green) }
+        if (repository.busy) BrandText("Connecting to OpenSwim cloud…", 14, color = Muted)
+        Spacer(Modifier.height(6.dp))
+        BrandButton(if (mode == "Sign in") "Sign in" else "Create account", onClick = {
+            val cleanEmail = address.trim()
+            localError = when {
+                !android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches() -> "Enter a valid email address."
+                password.length < 6 -> "Password must have at least 6 characters."
+                mode == "Create account" && password != confirmation -> "Passwords do not match."
+                repository.busy -> "Please wait for the current request."
+                else -> null
+            }
+            if (localError == null) {
+                if (mode == "Sign in") repository.signIn(cleanEmail, password)
+                else repository.signUp(cleanEmail, password)
+            }
+        })
     }
 }
 
-@Composable private fun AuthField(value: String, onChange: (String) -> Unit) {
-    Box(Modifier.fillMaxWidth()) {
-        if (value.isEmpty()) BrandText("you@example.com", 15, color = Muted)
-        BasicTextField(value, onChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(color = White, fontSize = 16.sp), modifier = Modifier.fillMaxWidth())
+@Composable private fun authFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Aqua,
+    unfocusedBorderColor = StrokeBlue,
+    focusedTextColor = White,
+    unfocusedTextColor = White,
+    focusedLabelColor = Aqua,
+    unfocusedLabelColor = Muted,
+    cursorColor = Aqua
+)
+
+@Composable private fun AuthScreen(onBack: () -> Unit, onSuccess: () -> Unit) {
+    LaunchedEffect(repository.email) { if (repository.email != null) onSuccess() }
+    SimplePage("Your OpenSwim account", onBack) {
+        BrandText("Sign in or create an account", 23, true)
+        BrandText("Your workouts, plans and swim history sync securely after you sign in.", 15, color = Muted)
+        BrandedAuth()
+        CloudConnectionStatus()
     }
 }
 
@@ -780,4 +864,20 @@ private fun paceLabel(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 6
 
 @Composable private fun ErrorNotice(message: String) {
     BrandCard(onClick = { repository.refresh() }) { BrandText("Connection issue", 17, true); BrandText(message, 13, color = Muted); BrandText("Tap to retry", 13, color = Aqua) }
+}
+
+@Composable private fun CloudConnectionStatus() {
+    val connected = repository.error == null && repository.lastSyncAt != null
+    Row(Modifier.fillMaxWidth().clickable { repository.refresh() }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(if (connected) Green else Color(0xFFFFB46A)))
+        Spacer(Modifier.width(8.dp))
+        BrandText(
+            when {
+                repository.busy -> "Connecting to OpenSwim cloud…"
+                connected -> "Cloud connected · ${repository.lastSyncAt?.let(::relativeTime)}"
+                else -> "Cloud unavailable · tap to retry"
+            },
+            12, color = if (connected) Green else Muted
+        )
+    }
 }
