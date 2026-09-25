@@ -318,7 +318,7 @@ internal fun OpenSwimBrandedApp() {
 }
 
 @Composable private fun QuickAction(icon: String, label: String, modifier: Modifier, onClick: () -> Unit, detail: String? = null) {
-    BrandCard(modifier.height(100.dp), onClick) {
+    BrandCard(modifier.height(112.dp), onClick) {
         BrandText(icon, 24, color = Aqua)
         BrandText(label, 15, true, maxLines = 1)
         if (detail != null) BrandText(detail, 11, color = Muted)
