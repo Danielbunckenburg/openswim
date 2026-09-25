@@ -3,10 +3,8 @@ package org.openswim.wear
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,15 +32,41 @@ import org.openswim.core.Stroke as SwimStroke
 import org.openswim.core.Workout
 import org.openswim.core.WorkoutSection
 
-internal val watchBackground = Color(0xFF02080D)
-internal val watchPanel = Color(0xFF0D1B24)
-internal val watchPanelTop = Color(0xFF122530)
-internal val watchOutline = Color(0xFF29414C)
-internal val watchCyan = Color(0xFF67DEFA)
-internal val watchCyanDark = Color(0xFF122D39)
-internal val watchWhite = Color(0xFFF5FBFF)
-internal val watchSecondary = Color(0xFFA7BBC5)
-internal val watchAmber = Color(0xFFFFC878)
+internal val watchBackground = Color(0xFF050D13)
+internal val watchPanel = Color(0xFF162B38)
+internal val watchOutline = Color(0xFF294C5D)
+internal val watchCyan = Color(0xFF38D6FF)
+internal val watchWhite = Color(0xFFFFFFFF)
+internal val watchSecondary = Color(0xFFA7B3BE)
+internal val watchAmber = Color(0xFFFFC981)
+internal val watchDanger = Color(0xFFF09A9A)
+
+@Composable
+internal fun SwimMark(modifier: Modifier = Modifier, color: Color = watchCyan) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val wave = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, h * 0.42f)
+            cubicTo(w * 0.17f, h * 0.18f, w * 0.25f, h * 0.68f, w * 0.5f, h * 0.42f)
+            cubicTo(w * 0.73f, h * 0.16f, w * 0.82f, h * 0.64f, w, h * 0.38f)
+        }
+        drawPath(wave, color, style = Stroke(2.6.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+internal fun ProgressArc(fraction: Float, color: Color = watchCyan, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = 3.dp.toPx()
+        val inset = stroke / 2 + 2.dp.toPx()
+        val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+        drawArc(watchOutline.copy(alpha = 0.65f), -135f, 270f, false,
+            Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+        drawArc(color, -135f, 270f * fraction.coerceIn(0f, 1f), false,
+            Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+    }
+}
 
 @Composable
 internal fun isCompactWatch() = LocalConfiguration.current.screenHeightDp <= 200
@@ -56,17 +79,17 @@ internal fun ScrollPage(content: @Composable ColumnScope.() -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         content = {
             content()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
         }
     )
 }
 
 @Composable
-internal fun FixedPage(bottomPadding: Dp = 15.dp, content: @Composable ColumnScope.() -> Unit) {
+internal fun FixedPage(bottomPadding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
     val compact = isCompactWatch()
     Column(
         Modifier.fillMaxSize().background(watchBackground)
-            .padding(start = 24.dp, end = 24.dp, top = if (compact) 8.dp else 15.dp, bottom = bottomPadding),
+            .padding(start = 24.dp, end = 24.dp, top = if (compact) 9.dp else 14.dp, bottom = bottomPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content
     )
@@ -74,151 +97,123 @@ internal fun FixedPage(bottomPadding: Dp = 15.dp, content: @Composable ColumnSco
 
 @Composable
 internal fun Eyebrow(text: String, color: Color = watchSecondary) {
-    val compact = isCompactWatch()
-    Text(text, color = color, fontSize = if (compact) 9.sp else 10.sp,
-        fontWeight = FontWeight.Bold, letterSpacing = if (compact) 0.7.sp else 1.2.sp,
+    Text(text, color = color, fontSize = if (isCompactWatch()) 9.sp else 10.sp,
+        fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp,
         textAlign = TextAlign.Center, maxLines = 1)
 }
 
 @Composable
-internal fun Status(text: String, color: Color) {
-    val compact = isCompactWatch()
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (!compact) {
-            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(3.dp)))
-            Spacer(Modifier.width(6.dp))
-        }
-        Eyebrow(text, color)
-    }
-}
-
-@Composable
 internal fun Heading(text: String) {
-    val compact = isCompactWatch()
-    Text(text, color = watchWhite, fontSize = if (compact) 22.sp else 25.sp,
-        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-        lineHeight = if (compact) 25.sp else 28.sp)
+    Text(text, color = watchWhite, fontSize = if (isCompactWatch()) 22.sp else 25.sp,
+        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 2,
+        lineHeight = if (isCompactWatch()) 24.sp else 28.sp)
 }
 
 @Composable
-internal fun WideButton(text: String, primary: Boolean, onClick: () -> Unit) {
+internal fun WideButton(text: String, primary: Boolean = true, onClick: () -> Unit) {
     val compact = isCompactWatch()
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(50.dp)
     Box(
-        Modifier.fillMaxWidth(0.88f).height(if (compact) 38.dp else 43.dp).clip(shape)
-            .background(if (primary) watchCyan else watchCyanDark)
-            .border(1.dp, if (primary) watchCyan else watchOutline, shape)
+        Modifier.fillMaxWidth(0.9f).height(if (compact) 37.dp else 42.dp).clip(shape)
+            .background(if (primary) watchCyan else watchPanel)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = if (primary) watchBackground else watchWhite,
-            fontSize = if (compact) 11.sp else 13.sp,
-            fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp, maxLines = 1)
+            fontSize = if (compact) 11.sp else 12.sp,
+            fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, maxLines = 1)
     }
 }
 
 @Composable
-internal fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Box(
-        Modifier.clip(shape).background(if (selected) watchCyan else watchPanel)
-            .border(1.dp, if (selected) watchCyan else watchOutline, shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = if (selected) watchBackground else watchWhite,
-            fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+internal fun TextAction(text: String, color: Color = watchSecondary, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth(0.9f).height(if (isCompactWatch()) 24.dp else 27.dp)
+        .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        Text(text, color = color, fontSize = if (isCompactWatch()) 10.sp else 11.sp,
+            fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp, maxLines = 1)
     }
 }
 
 @Composable
-internal fun PoolOption(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(17.dp)
-    Row(
-        Modifier.fillMaxWidth().height(40.dp).clip(shape)
-            .background(if (selected) watchCyanDark else watchPanel)
-            .border(1.dp, if (selected) watchCyan else watchOutline, shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 15.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = if (enabled) watchWhite else watchSecondary,
-            fontSize = 18.sp, fontWeight = FontWeight.Bold)
+internal fun Hairline() {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(watchOutline.copy(alpha = 0.62f)))
+}
+
+@Composable
+internal fun MenuRow(text: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(0.9f).height(if (isCompactWatch()) 37.dp else 43.dp)
+        .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(text, color = watchWhite, fontSize = if (isCompactWatch()) 17.sp else 19.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1)
         Spacer(Modifier.weight(1f))
-        Text(if (!enabled) "25 m ONLY" else if (selected) "SELECTED" else "SELECT",
-            color = if (selected) watchCyan else watchSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text("›", color = watchCyan, fontSize = 22.sp)
     }
 }
 
 @Composable
-internal fun WorkoutCard(workout: Workout, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
-    Column(
-        Modifier.fillMaxWidth().clip(shape)
-            .background(Brush.verticalGradient(listOf(watchPanelTop, watchPanel)))
-            .border(BorderStroke(1.dp, watchOutline), shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp)
-    ) {
-        Eyebrow(workout.type.uppercase(), watchCyan)
-        Spacer(Modifier.height(4.dp))
-        Text(workout.displayName(), color = watchWhite, fontSize = 19.sp,
-            fontWeight = FontWeight.Bold, maxLines = 1)
-        Spacer(Modifier.height(5.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Text(workout.totalDistance.toString(), color = watchCyan, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text("~${workout.estimatedMinutes} MIN", color = watchSecondary,
-                fontSize = 10.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 3.dp))
+internal fun WorkoutListItem(workout: Workout, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(if (isCompactWatch()) 54.dp else 62.dp)
+        .clickable(role = Role.Button, onClick = onClick)
+        .padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(if (isCompactWatch()) 29.dp else 35.dp)
+            .clip(RoundedCornerShape(11.dp)).background(watchPanel), contentAlignment = Alignment.Center) {
+            SwimMark(Modifier.size(21.dp, 15.dp))
         }
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Text(workout.displayName(), color = watchWhite,
+                fontSize = if (isCompactWatch()) 14.sp else 16.sp,
+                fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text("${workout.totalDistance}  ·  ~${workout.estimatedMinutes} min",
+                color = watchSecondary, fontSize = if (isCompactWatch()) 9.sp else 10.sp, maxLines = 1)
+            Text(workout.type.uppercase(), color = watchCyan,
+                fontSize = if (isCompactWatch()) 8.sp else 9.sp, maxLines = 1)
+        }
+        Text("›", color = watchCyan, fontSize = 21.sp)
+    }
+    Hairline()
+}
+
+@Composable
+internal fun PoolChoiceRow(length: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(0.9f).height(if (isCompactWatch()) 31.dp else 36.dp)
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).clip(RoundedCornerShape(4.dp))
+            .background(if (selected) watchCyan else watchOutline))
+        Spacer(Modifier.width(9.dp))
+        Text("$length m pool", color = if (enabled) watchWhite else watchSecondary,
+            fontSize = if (isCompactWatch()) 13.sp else 14.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.weight(1f))
+        Text(if (!enabled) "UNAVAILABLE" else if (selected) "CHANGE" else "SELECT",
+            color = if (selected) watchCyan else watchSecondary, fontSize = 9.sp,
+            fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-internal fun SectionCard(section: WorkoutSection) {
-    val shape = RoundedCornerShape(17.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(watchPanel)
-        .border(1.dp, watchOutline, shape).padding(13.dp)) {
+internal fun SectionBlock(section: WorkoutSection) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         Eyebrow(section.name.uppercase(), watchCyan)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(5.dp))
         section.sets.forEachIndexed { index, set ->
-            if (index > 0) Spacer(Modifier.height(9.dp))
-            Text("${if (set.repetitions > 1) "${set.repetitions} × " else ""}${set.step.distance}",
-                color = watchWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp)
-            Text(buildString {
-                append(set.step.stroke.displayName())
-                if (set.step.restAfter.seconds > 0) append("  ·  ${set.step.restAfter.seconds}s rest")
-            }, color = watchSecondary, fontSize = 11.sp, lineHeight = 13.sp)
-            set.step.note?.let { Text(it, color = watchSecondary, fontSize = 11.sp, lineHeight = 13.sp) }
+            if (index > 0) Spacer(Modifier.height(8.dp))
+            Text("${if (set.repetitions > 1) "${set.repetitions} × " else ""}${set.step.distance}  ${set.step.stroke.displayName()}",
+                color = watchWhite, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2,
+                lineHeight = 17.sp)
+            if (set.step.restAfter.seconds > 0) {
+                Text("${set.step.restAfter.seconds}s rest", color = watchSecondary, fontSize = 11.sp)
+            }
+            set.step.note?.let { Text(it, color = watchSecondary, fontSize = 11.sp, maxLines = 2) }
             if (set.step.equipment.isNotEmpty()) {
                 Text(set.step.equipment.joinToString { it.name.lowercase().replace('_', ' ') },
-                    color = watchCyan, fontSize = 11.sp)
+                    color = watchSecondary, fontSize = 11.sp)
             }
         }
     }
-}
-
-@Composable
-internal fun ThinProgress(progress: Float) {
-    val fraction by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(300), label = "progress")
-    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(watchOutline)) {
-        Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(watchCyan))
-    }
-}
-
-@Composable
-internal fun MetricTile(label: String, value: String, modifier: Modifier) {
-    val compact = isCompactWatch()
-    val shape = RoundedCornerShape(13.dp)
-    Column(
-        modifier.clip(shape).background(watchPanel).border(1.dp, watchOutline, shape)
-            .padding(vertical = if (compact) 2.dp else 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Eyebrow(label)
-        Text(value, color = watchWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
+    Spacer(Modifier.height(10.dp))
+    Hairline()
 }
 
 @Composable
@@ -228,20 +223,21 @@ internal fun RestDial(remaining: Int, total: Int) {
         targetValue = (remaining.toFloat() / total.coerceAtLeast(1)).coerceIn(0f, 1f),
         animationSpec = tween(800, easing = LinearEasing), label = "rest countdown"
     )
-    Box(Modifier.size(if (compact) 84.dp else 116.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(if (compact) 94.dp else 113.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 4.dp.toPx()
+            val stroke = 3.dp.toPx()
             val inset = stroke / 2
             val arcSize = Size(size.width - stroke, size.height - stroke)
             drawArc(watchOutline, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-            drawArc(watchAmber, -90f, 360f * fraction, false, Offset(inset, inset), arcSize,
+            drawArc(watchCyan, -90f, 360f * fraction, false, Offset(inset, inset), arcSize,
                 style = Stroke(stroke, cap = StrokeCap.Round))
         }
-        Text(formatTime(remaining), color = watchWhite, fontSize = if (compact) 30.sp else 42.sp,
+        Text(formatTime(remaining), color = watchWhite, fontSize = if (compact) 34.sp else 41.sp,
             fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, maxLines = 1, softWrap = false)
     }
 }
 
 internal fun SwimStroke.displayName() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
-internal fun Workout.displayName() = name.removeSuffix(" ${totalDistance.amount}")
+internal fun Workout.displayName() =
+    if (id.startsWith("concept-")) name else name.removeSuffix(" ${totalDistance.amount}")
 internal fun formatTime(seconds: Int) = "%02d:%02d".format(seconds / 60, seconds % 60)

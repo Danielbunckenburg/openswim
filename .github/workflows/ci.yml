@@ -5,6 +5,34 @@ on:
   pull_request:
     branches: [main]
 jobs:
+  database:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migration and verify RLS
+        run: |
+          set -euo pipefail
+          for script in scripts/test-support/auth_shim.sql supabase/migrations/20260924000000_backend_foundation.sql supabase/seed.sql supabase/tests/rls.sql; do
+            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$script"
+          done
   android:
     runs-on: ubuntu-latest
     permissions:

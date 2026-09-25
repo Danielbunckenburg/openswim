@@ -82,8 +82,14 @@ internal class CloudRepository(context: Context) : CompanionRepository {
 
     fun signUp(address: String, password: String) = runTask {
         val redirect = URLEncoder.encode("org.openswim.android://auth/callback", "UTF-8")
-        request("/auth/v1/signup?redirect_to=$redirect", "POST", JSONObject().put("email", address.trim()).put("password", password))
-        main.post { notice = "Check your email to confirm your account, then sign in." }
+        val result = request("/auth/v1/signup?redirect_to=$redirect", "POST", JSONObject().put("email", address.trim()).put("password", password)) as JSONObject
+        if (result.optString("access_token").isNotBlank()) {
+            saveSession(result)
+            loadData()
+            main.post { notice = "Account created and connected to OpenSwim cloud." }
+        } else {
+            main.post { notice = "Check your email to confirm your account, then sign in." }
+        }
     }
 
     fun acceptAuthRedirect(uri: Uri?) {

@@ -24,8 +24,8 @@ android {
         applicationId = "org.openswim.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0-test"
         resValue("string", "supabase_url", localProperties.getProperty("supabase.url", publicCloudValue("url")))
         resValue("string", "supabase_publishable_key", localProperties.getProperty("supabase.publishableKey", publicCloudValue("publishableKey")))
     }

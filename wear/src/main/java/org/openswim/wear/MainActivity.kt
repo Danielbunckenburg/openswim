@@ -7,9 +7,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,7 +28,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class WatchPage { HOME, LIBRARY, DETAIL, POOL, READY, SESSION, ADD_DISTANCE }
+private enum class WatchPage { HOME, LIBRARY, DETAIL, POOL, SETTINGS, SESSION, ADD_DISTANCE }
 private val poolLengths = listOf(25, 50)
 
 private data class SavedFlow(
@@ -69,15 +68,17 @@ private fun remainingSeconds(phase: SessionPhase): Int = when (phase) {
 }
 
 private fun restoreFlow(raw: String?): SavedFlow {
-    val fallback = SampleWorkouts.all.first()
+    val fallback = ConceptCWorkouts.all.first()
     val initial = SavedFlow(WatchPage.HOME, SwimMode.GUIDED, fallback, 25,
         SwimSession.guided(fallback, 25), "All", WatchPage.LIBRARY, 0, ManualSwimType.KICK, 100)
     return runCatching {
         val p = raw!!.split('|')
         if (p[0] == "v2") {
-            val page = WatchPage.valueOf(p[1])
             val mode = SwimMode.valueOf(p[2])
-            val workout = SampleWorkouts.all.first { it.id == p[3] }
+            val page = if (p[1] == "READY" || (p[1] == "POOL" && mode == SwimMode.GUIDED)) {
+                if (mode == SwimMode.GUIDED) WatchPage.DETAIL else WatchPage.POOL
+            } else WatchPage.valueOf(p[1])
+            val workout = ConceptCWorkouts.all.first { it.id == p[3] }
             val pool = p[4].toInt()
             val phase = phaseFrom(p[8], p[9].toInt())
             val guided = if (mode == SwimMode.GUIDED) WorkoutSession(workout, phase,
@@ -96,11 +97,13 @@ private fun restoreFlow(raw: String?): SavedFlow {
                 ManualSwimType.valueOf(p[17]), p[18].toInt().coerceAtLeast(pool))
         } else {
             // Migrate the previous guided-only local session without discarding a swim in progress.
-            val workout = SampleWorkouts.all.first { it.id == p[1] }
+            val workout = ConceptCWorkouts.all.first { it.id == p[1] }
             val pool = p[2].toInt()
             val guided = WorkoutSession(workout, phaseFrom(p[8], p[9].toInt()),
                 p[4].toInt(), p[5].toInt(), p[6].toInt(), p[7].toInt())
-            SavedFlow(WatchPage.valueOf(p[0]), SwimMode.GUIDED, workout, pool,
+            SavedFlow(if (p[0] == "READY" || p[0] == "POOL") WatchPage.DETAIL
+                else WatchPage.valueOf(p[0]),
+                SwimMode.GUIDED, workout, pool,
                 SwimSession.guided(workout, pool).copy(guided = guided), p[3],
                 p.getOrNull(10)?.let(WatchPage::valueOf) ?: WatchPage.LIBRARY,
                 0, ManualSwimType.KICK, pool * 4)
@@ -123,6 +126,7 @@ private fun saveFlow(flow: SavedFlow): String {
 private fun OpenSwimApp() {
     val preferences = LocalContext.current.applicationContext.getSharedPreferences("open_swim_flow", 0)
     val saved = remember { restoreFlow(preferences.getString("snapshot", null)) }
+    var defaultPool by remember { mutableIntStateOf(preferences.getInt("default_pool_m", 25)) }
     var page by remember { mutableStateOf(saved.page) }
     var mode by remember { mutableStateOf(saved.mode) }
     var workout by remember { mutableStateOf(saved.workout) }
@@ -134,6 +138,7 @@ private fun OpenSwimApp() {
     var drillType by remember { mutableStateOf(saved.drillType) }
     var drillAmount by remember { mutableIntStateOf(saved.drillAmount) }
     var confirmingEnd by remember { mutableStateOf(false) }
+    var endFromPaused by remember { mutableStateOf(false) }
     val ticking = session.phase == SessionPhase.Active || session.phase is SessionPhase.Rest
 
     LaunchedEffect(page, mode, workout, poolLength, session, category, detailOrigin, pane, drillType, drillAmount) {
@@ -160,13 +165,15 @@ private fun OpenSwimApp() {
     BackHandler(page != WatchPage.HOME) {
         when (page) {
             WatchPage.LIBRARY -> page = WatchPage.HOME
-            WatchPage.DETAIL -> page = detailOrigin
-            WatchPage.POOL -> page = if (mode == SwimMode.GUIDED) WatchPage.DETAIL else WatchPage.HOME
-            WatchPage.READY -> page = WatchPage.POOL
+            WatchPage.DETAIL -> page = WatchPage.LIBRARY
+            WatchPage.POOL, WatchPage.SETTINGS -> page = WatchPage.HOME
             WatchPage.ADD_DISTANCE -> page = WatchPage.SESSION
             WatchPage.SESSION -> when {
                 session.locked -> Unit
-                confirmingEnd -> confirmingEnd = false
+                confirmingEnd -> {
+                    confirmingEnd = false
+                    if (!endFromPaused) session = session.resume()
+                }
                 session.phase == SessionPhase.Complete -> page = WatchPage.HOME
                 session.phase is SessionPhase.Paused -> Unit
                 else -> pane = if (mode == SwimMode.GUIDED) 2 else 1
@@ -177,126 +184,91 @@ private fun OpenSwimApp() {
 
     Crossfade(targetState = page, animationSpec = tween(180), label = "watch page") { visible ->
         when (visible) {
-            WatchPage.HOME -> ScrollPage {
-                Spacer(Modifier.height(18.dp))
-                Heading("OpenSwim")
-                Spacer(Modifier.height(19.dp))
-                Eyebrow("START A SWIM", watchCyan)
-                Spacer(Modifier.height(13.dp))
-                WideButton("GUIDED WORKOUT", true) {
-                    mode = SwimMode.GUIDED
-                    workout = SampleWorkouts.all.first()
-                    poolLength = 25
-                    session = SwimSession.guided(workout, poolLength)
-                    page = WatchPage.LIBRARY
-                }
-                Spacer(Modifier.height(9.dp))
-                WideButton("POOL SWIM", false) {
+            WatchPage.HOME -> ConceptCHome(defaultPool,
+                onStart = {
                     mode = SwimMode.POOL
-                    poolLength = 25
-                    session = SwimSession.pool(25)
+                    poolLength = defaultPool
+                    session = SwimSession.pool(defaultPool)
                     page = WatchPage.POOL
-                }
-            }
-            WatchPage.LIBRARY -> ScrollPage {
-                Spacer(Modifier.height(16.dp))
-                Eyebrow("GUIDED WORKOUT", watchCyan)
-                Spacer(Modifier.height(4.dp))
-                Heading("Workouts")
-                Spacer(Modifier.height(11.dp))
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    listOf("All", "Easy", "Technique", "Aerobic", "Endurance", "Threshold", "Sprint").forEach { option ->
-                        FilterChip(option, category == option) { category = option }
-                    }
-                }
-                Spacer(Modifier.height(11.dp))
-                SampleWorkouts.all.filter { category == "All" || it.type == category }.forEach { item ->
-                    WorkoutCard(item) {
-                        workout = item
-                        poolLength = 25
-                        session = SwimSession.guided(item, 25)
-                        detailOrigin = WatchPage.LIBRARY
-                        page = WatchPage.DETAIL
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-            WatchPage.DETAIL -> ScrollPage {
+                },
+                onLibrary = {
+                    mode = SwimMode.GUIDED
+                    workout = ConceptCWorkouts.all.first()
+                    poolLength = defaultPool.takeIf { workout.supportsPoolLength(it) } ?: 25
+                    session = SwimSession.guided(workout, poolLength)
+                    category = "All"
+                    page = WatchPage.LIBRARY
+                })
+            WatchPage.LIBRARY -> ConceptCLibrary(category,
+                onCategory = { category = it },
+                onWorkout = { item ->
+                    workout = item
+                    poolLength = defaultPool.takeIf { item.supportsPoolLength(it) } ?: 25
+                    session = SwimSession.guided(item, poolLength)
+                    detailOrigin = WatchPage.LIBRARY
+                    page = WatchPage.DETAIL
+                },
+                onSettings = { page = WatchPage.SETTINGS })
+            WatchPage.DETAIL -> ConceptCDetail(workout, poolLength,
+                onBack = { page = WatchPage.LIBRARY },
+                onPool = {
+                    poolLength = poolLengths.firstOrNull { it != poolLength && workout.supportsPoolLength(it) }
+                        ?: poolLength
+                    session = SwimSession.guided(workout, poolLength)
+                },
+                onStart = {
+                    session = SwimSession.guided(workout, poolLength).start()
+                    pane = 0
+                    confirmingEnd = false
+                    page = WatchPage.SESSION
+                })
+            WatchPage.POOL -> ScrollPage {
                 Spacer(Modifier.height(17.dp))
-                Eyebrow(workout.type.uppercase(), watchCyan)
-                Spacer(Modifier.height(3.dp))
-                Heading(workout.displayName())
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(workout.totalDistance.toString(), color = watchWhite,
-                        fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(8.dp))
-                    Text("~${workout.estimatedMinutes} min", color = watchSecondary, fontSize = 12.sp,
-                        modifier = Modifier.padding(bottom = 3.dp))
+                Eyebrow("POOL SWIM", watchCyan)
+                Spacer(Modifier.height(4.dp))
+                Heading("Pool length")
+                Spacer(Modifier.height(15.dp))
+                poolLengths.forEach { length ->
+                    PoolChoiceRow(length, poolLength == length, true) { poolLength = length }
                 }
                 Spacer(Modifier.height(12.dp))
-                WideButton("CHOOSE POOL", true) { page = WatchPage.POOL }
-                Spacer(Modifier.height(15.dp))
-                workout.sections.forEach { section ->
-                    SectionCard(section)
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-            WatchPage.POOL -> ScrollPage {
-                Spacer(Modifier.height(10.dp))
-                Eyebrow("POOL SETUP", watchCyan)
-                Spacer(Modifier.height(3.dp))
-                Heading("Pool size")
-                Spacer(Modifier.height(3.dp))
-                poolLengths.forEach { length ->
-                    val supported = mode == SwimMode.POOL || workout.supportsPoolLength(length)
-                    PoolOption("$length m", poolLength == length, supported) { poolLength = length }
-                    Spacer(Modifier.height(3.dp))
-                }
-                Spacer(Modifier.height(3.dp))
-                WideButton("CONTINUE", true) { page = WatchPage.READY }
-            }
-            WatchPage.READY -> ScrollPage {
-                Spacer(Modifier.height(17.dp))
-                Eyebrow("READY TO SWIM", watchCyan)
-                Spacer(Modifier.height(5.dp))
-                Heading(if (mode == SwimMode.GUIDED) workout.displayName() else "Pool Swim")
-                if (mode == SwimMode.GUIDED) {
-                    Text(workout.totalDistance.toString(), color = watchWhite,
-                        fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
-                    Spacer(Modifier.height(5.dp))
-                    Text("$poolLength m pool  ·  ${workout.totalDistance.amount / poolLength} lengths",
-                        color = watchSecondary, fontSize = 12.sp)
-                    Spacer(Modifier.height(4.dp))
-                    val first = workout.instructions().first()
-                    Text("FIRST  ${first.set.step.distance} ${first.set.step.stroke.displayName()}",
-                        color = watchCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center)
-                } else {
-                    Spacer(Modifier.height(7.dp))
-                    Text("$poolLength m", color = watchWhite, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
-                    Spacer(Modifier.height(4.dp))
-                    Text("MANUAL LENGTH LOGGING", color = watchSecondary, fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                }
-                Spacer(Modifier.height(8.dp))
-                WideButton("START SWIM", true) {
-                    session = if (mode == SwimMode.GUIDED)
-                        SwimSession.guided(workout, poolLength).start()
-                    else SwimSession.pool(poolLength).start()
+                WideButton("START SWIM") {
+                    session = SwimSession.pool(poolLength).start()
                     pane = 0
                     confirmingEnd = false
                     page = WatchPage.SESSION
                 }
+                Spacer(Modifier.height(7.dp))
+                Eyebrow("DISTANCE ADDED BY TAPS", watchSecondary)
+            }
+            WatchPage.SETTINGS -> ScrollPage {
+                Spacer(Modifier.height(18.dp))
+                Eyebrow("PREFERENCES", watchCyan)
+                Spacer(Modifier.height(3.dp))
+                Heading("Settings")
+                Spacer(Modifier.height(17.dp))
+                Eyebrow("DEFAULT POOL")
+                Spacer(Modifier.height(5.dp))
+                poolLengths.forEach { length ->
+                    PoolChoiceRow(length, defaultPool == length, true) {
+                        defaultPool = length
+                        preferences.edit().putInt("default_pool_m", length).apply()
+                    }
+                }
+                Spacer(Modifier.height(7.dp))
+                Eyebrow("CHANGE PER SWIM AT START", watchSecondary)
             }
             WatchPage.SESSION -> when {
                 session.locked -> LockScreen { session = session.unlock() }
                 confirmingEnd -> EndConfirmScreen(session,
-                    onKeep = { confirmingEnd = false; session = session.resume() },
+                    onKeep = {
+                        confirmingEnd = false
+                        if (!endFromPaused) session = session.resume()
+                    },
                     onFinish = { confirmingEnd = false; session = session.end() })
                 session.phase is SessionPhase.Paused -> PausedScreen(session,
                     onResume = { session = session.resume() },
-                    onEnd = { confirmingEnd = true })
+                    onEnd = { endFromPaused = true; confirmingEnd = true })
                 session.phase == SessionPhase.Complete ->
                     CompleteScreen(session) { page = WatchPage.HOME }
                 session.phase == SessionPhase.Active || session.phase is SessionPhase.Rest ->
@@ -311,7 +283,11 @@ private fun OpenSwimApp() {
                             page = WatchPage.ADD_DISTANCE
                         },
                         onPause = { session = session.pause() },
-                        onEnd = { session = session.pause(); confirmingEnd = true })
+                        onEnd = {
+                            endFromPaused = false
+                            session = session.pause()
+                            confirmingEnd = true
+                        })
             }
             WatchPage.ADD_DISTANCE -> AddDistanceScreen(poolLength, drillType, drillAmount,
                 onType = { drillType = it },

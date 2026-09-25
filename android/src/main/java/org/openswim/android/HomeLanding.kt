@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,7 +48,7 @@ private val Cyan = Color(0xFF18D9EF)
 private val DeepNavy = Color(0xFF061C2B)
 
 @Composable
-internal fun HomeLanding(onStartSwim: () -> Unit, onGuidedWorkout: () -> Unit) {
+internal fun HomeLanding(onStartSwim: () -> Unit, onGuidedWorkout: () -> Unit, onAccount: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().background(DeepNavy)) {
         Image(
             painter = painterResource(R.drawable.home_water),
@@ -65,6 +66,17 @@ internal fun HomeLanding(onStartSwim: () -> Unit, onGuidedWorkout: () -> Unit) {
                     1f to Color(0xF2051825)
                 )
             )
+        )
+
+        Text(
+            "Sign in / Create account",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.align(Alignment.TopEnd)
+                .padding(top = 43.dp, end = 16.dp)
+                .clickable(onClick = onAccount)
+                .padding(9.dp)
         )
 
         Column(
