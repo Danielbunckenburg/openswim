@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +37,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -87,7 +87,7 @@ private fun OpenSwimApp() {
     BackHandler(stack.isNotEmpty()) { pop() }
 
     val landing = tab == Tab.HOME && stack.isEmpty()
-    val activity = LocalContext.current as? ComponentActivity
+    val activity = LocalActivity.current
     SideEffect {
         activity?.window?.let { window ->
             WindowCompat.setDecorFitsSystemWindows(window, !landing)
