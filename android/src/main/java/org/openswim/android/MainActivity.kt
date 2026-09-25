@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import org.openswim.core.CompletedWorkout
 import org.openswim.core.Equipment
 import org.openswim.core.RepetitionSet
@@ -76,12 +79,30 @@ private data class Route(val page: Page, val id: String = "")
 
 @Composable
 private fun OpenSwimApp() {
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    var tab by remember { mutableStateOf(Tab.HOME) }
     val stack = remember { mutableStateListOf<Route>() }
     fun select(next: Tab) { tab = next; stack.clear() }
     fun open(page: Page, id: String = "") { stack.add(Route(page, id)) }
     fun pop() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
     BackHandler(stack.isNotEmpty()) { pop() }
+
+    val landing = tab == Tab.HOME && stack.isEmpty()
+    val activity = LocalActivity.current
+    SideEffect {
+        activity?.window?.let { window ->
+            WindowCompat.setDecorFitsSystemWindows(window, !landing)
+            window.statusBarColor = if (landing) android.graphics.Color.TRANSPARENT else android.graphics.Color.WHITE
+            window.navigationBarColor = if (landing) android.graphics.Color.TRANSPARENT else android.graphics.Color.WHITE
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !landing
+                isAppearanceLightNavigationBars = !landing
+            }
+        }
+    }
+    if (landing) {
+        HomeLanding(onStartSwim = { select(Tab.WORKOUTS) }, onGuidedWorkout = { select(Tab.PLANS) })
+        return
+    }
 
     Scaffold(bottomBar = {
         NavigationBar {
@@ -109,11 +130,7 @@ private fun OpenSwimApp() {
                         ?.let { PlanDetail(it, onWorkout = { id -> open(Page.WORKOUT_DETAIL, id) }) } ?: MissingRecord { pop() }
                     Page.DEVICES -> Devices()
                     null -> when (tab) {
-                        Tab.HOME -> Home(
-                            onWorkout = { open(Page.WORKOUT_DETAIL, it) },
-                            onTab = ::select,
-                            onDevices = { select(Tab.ACCOUNT); open(Page.DEVICES) }
-                        )
+                        Tab.HOME -> Unit
                         Tab.WORKOUTS -> Workouts { open(Page.WORKOUT_DETAIL, it) }
                         Tab.PROGRESS -> Progress { open(Page.WORKOUT_RESULT, it) }
                         Tab.PLANS -> Plans(
@@ -162,25 +179,6 @@ private fun pageTitle(route: Route) = when (route.page) {
 
 @Composable private fun Plain(text: String) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 @Composable private fun Reserved(text: String) { Plain("Later: $text") }
-
-@Composable private fun Home(onWorkout: (String) -> Unit, onTab: (Tab) -> Unit, onDevices: () -> Unit) {
-    Section("Today's workout") {
-        val today = java.time.LocalDate.now().toString()
-        val scheduled = repository.scheduled.firstOrNull { it.status == "SCHEDULED" && it.date >= today && it.workoutId != null }
-        val workout = scheduled?.workoutId?.let(repository::workout)
-        if (scheduled != null && workout != null) InfoCard(workout.name, "${scheduled.date} · ${workout.totalDistance} · ~${workout.estimatedMinutes} min") { onWorkout(workout.id) }
-        else Plain(if (repository.email == null) "Sign in to see your plan." else "No workout scheduled yet.")
-    }
-    Section("Quick actions") {
-        InfoCard("Browse workouts", "Find a workout in the library") { onTab(Tab.WORKOUTS) }
-        InfoCard("My plan", "See upcoming swims") { onTab(Tab.PLANS) }
-        InfoCard("Watch", "See device status") { onDevices() }
-    }
-    Section("Watch status") { InfoCard("OpenSwim Watch", "Not connected · Last sync: never") { onDevices() } }
-    Section("Weekly summary") {
-        InfoCard("Your swims", "${repository.completed.size} recorded workouts") { onTab(Tab.PROGRESS) }
-    }
-}
 
 @Composable private fun Workouts(onWorkout: (String) -> Unit) {
     var category by rememberSaveable { mutableStateOf("All") }
