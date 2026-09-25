@@ -23,6 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,8 +55,8 @@ private val Green = Color(0xFF64E99C)
 private val White = Color.White
 private val CardShape = RoundedCornerShape(17.dp)
 
-private enum class SwimTab(val title: String, val icon: String) {
-    HOME("Home", "⌂"), WORKOUTS("Workouts", "▥"), PROGRESS("Progress", "▥"), PLANS("Plans", "▣"), MORE("More", "☰")
+private enum class SwimTab(val title: String) {
+    HOME("Home"), WORKOUTS("Workouts"), PROGRESS("Progress"), PLANS("Plans"), MORE("More")
 }
 private sealed interface SwimPage {
     data class WorkoutDetail(val id: String) : SwimPage
@@ -163,7 +167,10 @@ internal fun OpenSwimBrandedApp() {
         Row(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(start = 20.dp, end = 20.dp, bottom = 17.dp), verticalAlignment = Alignment.CenterVertically) {
             if (back != null) BrandText("←", 31, color = Aqua, modifier = Modifier.clickable(onClick = back).padding(end = 16.dp))
             BrandText(title, 26, true, modifier = Modifier.weight(1f))
-            if (action != null && onAction != null) BrandText(action, 26, color = Aqua, modifier = Modifier.clickable(onClick = onAction))
+            if (action != null && onAction != null) {
+                if (action == "bell") BellIcon(Modifier.size(27.dp).clickable(onClick = onAction))
+                else BrandText(action, 26, color = Aqua, modifier = Modifier.clickable(onClick = onAction))
+            }
         }
     }
 }
@@ -201,7 +208,7 @@ internal fun OpenSwimBrandedApp() {
         SwimTab.entries.forEach { tab ->
             val active = selected == tab
             Column(Modifier.weight(1f).fillMaxHeight().clickable { onSelect(tab) }.padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                BrandText(tab.icon, 27, active, if (active) Aqua else Muted)
+                NavIcon(tab, if (active) Aqua else Muted)
                 BrandText(tab.title, 11, active, if (active) Aqua else Muted, maxLines = 1)
                 Spacer(Modifier.height(4.dp))
                 if (active) Box(Modifier.width(38.dp).height(3.dp).clip(CircleShape).background(Aqua))
@@ -210,9 +217,61 @@ internal fun OpenSwimBrandedApp() {
     }
 }
 
+@Composable private fun BellIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val s = size.width
+        val path = Path().apply {
+            moveTo(.18f * s, .71f * s)
+            lineTo(.29f * s, .59f * s)
+            lineTo(.29f * s, .37f * s)
+            cubicTo(.29f * s, .08f * s, .71f * s, .08f * s, .71f * s, .37f * s)
+            lineTo(.71f * s, .59f * s)
+            lineTo(.82f * s, .71f * s)
+            close()
+        }
+        drawPath(path, Aqua, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round))
+        drawLine(Aqua, Offset(.42f * s, .83f * s), Offset(.58f * s, .83f * s), 2.2.dp.toPx(), StrokeCap.Round)
+    }
+}
+
+@Composable private fun NavIcon(tab: SwimTab, tint: Color) {
+    Canvas(Modifier.size(25.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.1.dp.toPx()
+        when (tab) {
+            SwimTab.HOME -> {
+                val roof = Path().apply { moveTo(.12f*w,.46f*h); lineTo(.5f*w,.12f*h); lineTo(.88f*w,.46f*h) }
+                drawPath(roof,tint,style=Stroke(stroke,cap=StrokeCap.Round))
+                val body = Path().apply { moveTo(.22f*w,.42f*h); lineTo(.22f*w,.88f*h); lineTo(.42f*w,.88f*h); lineTo(.42f*w,.66f*h); lineTo(.58f*w,.66f*h); lineTo(.58f*w,.88f*h); lineTo(.78f*w,.88f*h); lineTo(.78f*w,.42f*h) }
+                drawPath(body,tint,style=Stroke(stroke,cap=StrokeCap.Round))
+            }
+            SwimTab.WORKOUTS, SwimTab.PROGRESS -> {
+                val bars = if (tab == SwimTab.WORKOUTS) listOf(.38f,.66f,.50f,.78f) else listOf(.29f,.58f,.80f,.48f)
+                bars.forEachIndexed { i, fraction ->
+                    val x = (.18f + i*.20f)*w
+                    drawLine(tint, Offset(x,(1f-fraction)*h), Offset(x,.88f*h),stroke,StrokeCap.Round)
+                }
+            }
+            SwimTab.PLANS -> {
+                drawRoundRect(tint, topLeft=Offset(.16f*w,.20f*h), size=androidx.compose.ui.geometry.Size(.68f*w,.68f*h), cornerRadius=androidx.compose.ui.geometry.CornerRadius(.07f*w), style=Stroke(stroke))
+                drawLine(tint,Offset(.16f*w,.36f*h),Offset(.84f*w,.36f*h),stroke)
+                drawLine(tint,Offset(.34f*w,.08f*h),Offset(.34f*w,.27f*h),stroke,StrokeCap.Round)
+                drawLine(tint,Offset(.66f*w,.08f*h),Offset(.66f*w,.27f*h),stroke,StrokeCap.Round)
+                drawLine(tint,Offset(.34f*w,.61f*h),Offset(.46f*w,.72f*h),stroke,StrokeCap.Round)
+                drawLine(tint,Offset(.46f*w,.72f*h),Offset(.71f*w,.47f*h),stroke,StrokeCap.Round)
+            }
+            SwimTab.MORE -> repeat(3) { i ->
+                val y = (.27f + i*.23f)*h
+                drawLine(tint,Offset(.17f*w,y),Offset(.83f*w,y),stroke,StrokeCap.Round)
+            }
+        }
+    }
+}
+
 @Composable private fun Dashboard(onWorkout: (String) -> Unit, onWorkouts: () -> Unit, onPlans: () -> Unit, onSwim: () -> Unit, onSync: () -> Unit, onNotifications: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        WaterHeader("OpenSwim", action = "♧", onAction = onNotifications, height = 122)
+        WaterHeader("OpenSwim", action = "bell", onAction = onNotifications, height = 122)
         Column(Modifier.padding(horizontal = 17.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 BrandText("Today", 24, true, modifier = Modifier.weight(1f))
